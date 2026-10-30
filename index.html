@@ -13,22 +13,17 @@
       <div id="auth-panel" class="card">
         <div class="card-top"><span class="dot"></span> ДОСТУП К СИСТЕМЕ</div>
         <h2 id="form-title">С возвращением</h2>
-        <p class="muted" id="form-subtitle">Войдите в свою учётную запись</p>
+        <p class="muted" id="form-subtitle">Отправим одноразовый код на вашу почту</p>
         <div class="tabs"><button id="login-tab" class="active" type="button">Вход</button><button id="register-tab" type="button">Регистрация</button></div>
         <form id="auth-form">
           <label for="email">Электронная почта</label>
           <input id="email" name="email" type="email" placeholder="name@example.com" autocomplete="email" required>
-          <label for="password">Пароль</label>
-          <input id="password" name="password" type="password" placeholder="Не менее 8 символов" autocomplete="current-password" minlength="8" required>
-          <div id="register-fields" hidden>
-            <label for="role">Тип учётной записи</label>
-            <select id="role" name="role"><option value="user">Пользователь</option><option value="admin">Администратор</option></select>
-            <label for="inviteCode">Код приглашения</label>
-            <input id="inviteCode" name="inviteCode" type="text" placeholder="Код приглашения, не пароль" autocomplete="off">
-            <p class="hint">Для каждой роли регистрация доступна один раз.</p>
-          </div>
-          <p id="message" class="message" role="status" aria-live="polite"></p>
-          <button id="submit-button" class="primary" type="submit">Войти <span>→</span></button>
+          <div id="code-fields" hidden>
+            <label for="code">Код из письма</label>
+            <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="6 цифр">
+            <button id="change-email" class="secondary primary" type="button">Изменить почту / отправить снова</button>
+          </div>          <p id="message" class="message" role="status" aria-live="polite"></p>
+          <button id="submit-button" class="primary" type="submit">Получить код <span>→</span></button>
         </form>
         <p class="card-foot"><a href="https://github.com/Sshows/two-roles-auth-lab/blob/main/README.md" target="_blank" rel="noopener">Как работает сайт и код</a></p>
       </div>
@@ -47,5 +42,6 @@
   <script src="/script.js"></script>
 </body>
 </html>
+
 
 
