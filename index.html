@@ -3,21 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Две роли — учебный проект</title>
+  <title>Лист — учебный проект</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <main class="layout">
-    <section class="intro">
-      <div class="brand"><span class="brand-mark">✳</span> Две роли <span class="tag">УЧЕБНЫЙ ПРОЕКТ</span></div>
-      <div class="intro-copy">
-        <div class="eyebrow">ЛАБОРАТОРНАЯ РАБОТА / 01</div>
-        <h1>Один сайт.<br><em>Две роли.</em><br>Простой вход.</h1>
-        <p>Небольшой пример регистрации и авторизации: один пользователь, один администратор. После входа сайт показывает роль аккаунта.</p>
-        <div class="steps"><span>01 Регистрация</span><span>02 Вход</span><span>03 Личный кабинет</span></div>
-      </div>
-      <div class="foot">Сделано для изучения основ веб-разработки</div>
-    </section>
+    <section class="intro"><div class="brand"><span class="brand-mark">❧</span> Лист</div><div class="intro-copy"><h1>Лист</h1><p>Учебный проект</p></div></section>
     <section class="right">
       <div id="auth-panel" class="card">
         <div class="card-top"><span class="dot"></span> ДОСТУП К СИСТЕМЕ</div>
@@ -33,13 +24,13 @@
             <label for="role">Тип учётной записи</label>
             <select id="role" name="role"><option value="user">Пользователь</option><option value="admin">Администратор</option></select>
             <label for="inviteCode">Код приглашения</label>
-            <input id="inviteCode" name="inviteCode" type="text" placeholder="Код для выбранной роли" autocomplete="off">
+            <input id="inviteCode" name="inviteCode" type="text" placeholder="Код приглашения, не пароль" autocomplete="off">
             <p class="hint">Для каждой роли регистрация доступна один раз.</p>
           </div>
           <p id="message" class="message" role="status" aria-live="polite"></p>
           <button id="submit-button" class="primary" type="submit">Войти <span>→</span></button>
         </form>
-        <p class="card-foot">Пароль хранится на сервере в виде хеша.</p>
+        <p class="card-foot"><a href="https://github.com/Sshows/two-roles-auth-lab/blob/main/README.md" target="_blank" rel="noopener">Как работает сайт и код</a></p>
       </div>
       <div id="profile-panel" class="card" hidden>
         <div class="card-top"><span class="dot"></span> ЛИЧНЫЙ КАБИНЕТ</div>
@@ -48,7 +39,7 @@
         <p class="muted">Аккаунт успешно подтверждён на сервере.</p>
         <div class="profile-row"><span>Почта</span><strong id="profile-email"></strong></div>
         <div class="profile-row"><span>Роль</span><strong id="profile-role"></strong></div>
-        <p class="hint">Разграничение доступа по ролям будет добавлено в следующей лабораторной.</p>
+        <p class="hint"></p>
         <button id="logout-button" class="primary secondary" type="button">Выйти <span>→</span></button>
       </div>
     </section>
@@ -56,4 +47,5 @@
   <script src="/script.js"></script>
 </body>
 </html>
+
 
