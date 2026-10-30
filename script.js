@@ -1,59 +1,72 @@
-const form = document.querySelector('#auth-form');
-const message = document.querySelector('#message');
+const $ = selector => document.querySelector(selector);
+let step = 'send';
 let mode = 'login';
 
+function resetForm() {
+  step = 'send';
+  $('#code-fields').hidden = true;
+  $('#code').required = false;
+  $('#code').value = '';
+  $('#email').readOnly = false;
+  $('#submit-button').textContent = 'Получить код →';
+  $('#message').textContent = '';
+}
 function showProfile(account) {
-  document.querySelector('#auth-panel').hidden = true;
-  document.querySelector('#profile-panel').hidden = false;
-  document.querySelector('#profile-email').textContent = account.email;
-  document.querySelector('#profile-role').textContent = account.role === 'admin' ? 'Администратор' : 'Пользователь';
+  $('#auth-panel').hidden = true;
+  $('#profile-panel').hidden = false;
+  $('#profile-email').textContent = account.email;
+  $('#profile-role').textContent = account.role === 'admin' ? 'Администратор' : 'Пользователь';
 }
-
-function showForm() {
-  document.querySelector('#profile-panel').hidden = true;
-  document.querySelector('#auth-panel').hidden = false;
-}
-
 function setMode(next) {
   mode = next;
-  message.textContent = '';
-  document.querySelector('#login-tab').classList.toggle('active', mode === 'login');
-  document.querySelector('#register-tab').classList.toggle('active', mode === 'register');
-  document.querySelector('#register-fields').hidden = mode !== 'register';
-  document.querySelector('#inviteCode').required = mode === 'register';
-  document.querySelector('#password').autocomplete = mode === 'login' ? 'current-password' : 'new-password';
-  document.querySelector('#form-title').textContent = mode === 'login' ? 'С возвращением' : 'Создайте аккаунт';
-  document.querySelector('#form-subtitle').textContent = mode === 'login' ? 'Войдите в свою учётную запись' : 'Заполните данные и код приглашения';
-  document.querySelector('#submit-button').firstChild.textContent = mode === 'login' ? 'Войти ' : 'Зарегистрироваться ';
+  resetForm();
+  $('#login-tab').classList.toggle('active', mode === 'login');
+  $('#register-tab').classList.toggle('active', mode === 'register');
+  $('#form-title').textContent = mode === 'login' ? 'С возвращением' : 'Создайте аккаунт';
+  $('#form-subtitle').textContent = 'Отправим одноразовый код на вашу почту';
 }
-
-document.querySelector('#login-tab').addEventListener('click', () => setMode('login'));
-document.querySelector('#register-tab').addEventListener('click', () => setMode('register'));
-
-form.addEventListener('submit', async event => {
+async function api(action, data = {}) {
+  const response = await fetch(`/api/auth?action=${action}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+  });
+  const result = await response.json();
+  if (!response.ok) throw new Error(result.error || 'Ошибка сервера');
+  return result;
+}
+$('#login-tab').onclick = () => setMode('login');
+$('#register-tab').onclick = () => setMode('register');
+$('#change-email').onclick = resetForm;
+$('#auth-form').onsubmit = async event => {
   event.preventDefault();
-  message.textContent = '';
-  const button = document.querySelector('#submit-button');
-  button.disabled = true;
-  const data = Object.fromEntries(new FormData(form));
+  $('#submit-button').disabled = true;
+  $('#message').textContent = '';
   try {
-    const response = await fetch(`/api/auth?action=${mode}`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
-    });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || 'Ошибка сервера');
-    form.reset();
-    showProfile(result);
-  } catch (error) { message.textContent = error.message; }
-  finally { button.disabled = false; }
-});
-
-document.querySelector('#logout-button').addEventListener('click', async () => {
-  await fetch('/api/auth?action=logout', { method: 'POST' });
-  showForm();
-  setMode('login');
-});
-
-fetch('/api/auth?action=me').then(response => response.ok ? response.json() : null)
-  .then(account => { if (account) showProfile(account); });
+    const data = Object.fromEntries(new FormData(event.target));
+    const result = await api(step, data);
+    if (step === 'send') {
+      step = 'verify';
+      $('#code-fields').hidden = false;
+      $('#code').required = true;
+      $('#email').readOnly = true;
+      $('#submit-button').textContent = 'Подтвердить и войти →';
+      $('#message').textContent = 'Письмо отправлено. Проверьте также папку «Спам». Код действует 10 минут.';
+      $('#code').focus();
+    } else {
+      event.target.reset();
+      resetForm();
+      showProfile(result);
+    }
+  } catch (error) { $('#message').textContent = error.message; }
+  finally { $('#submit-button').disabled = false; }
+};
+$('#logout-button').onclick = async () => {
+  try {
+    await api('logout');
+    $('#profile-panel').hidden = true;
+    $('#auth-panel').hidden = false;
+    setMode('login');
+  } catch { $('#logout-button').textContent = 'Не удалось выйти. Повторить'; }
+};
+fetch('/api/auth?action=me').then(r => r.ok ? r.json() : null)
+  .then(account => { if (account) showProfile(account); }).catch(() => {});
 
