@@ -13,26 +13,31 @@
       <div id="auth-panel" class="card">
         <div class="card-top"><span class="dot"></span> ДОСТУП К СИСТЕМЕ</div>
         <h2 id="form-title">С возвращением</h2>
-        <p class="muted" id="form-subtitle">Отправим одноразовый код на вашу почту</p>
+        <p class="muted" id="form-subtitle">Введите почту и пароль</p>
         <div class="tabs"><button id="login-tab" class="active" type="button">Вход</button><button id="register-tab" type="button">Регистрация</button></div>
         <form id="auth-form">
           <label for="email">Электронная почта</label>
           <input id="email" name="email" type="email" placeholder="name@example.com" autocomplete="email" required>
+          <div id="details-fields">
+            <div id="name-field" hidden><label for="name">Имя и фамилия</label><input id="name" name="name" autocomplete="name" minlength="2" maxlength="80" placeholder="Как к вам обращаться"></div>
+            <label for="password">Пароль</label><input id="password" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="Не менее 8 символов" required>
+            <div id="role-field"><label for="role">Войти как</label><select id="role" name="role"><option value="user">Пользователь</option><option value="admin">Администратор</option></select></div>
+          </div>
           <div id="code-fields" hidden>
             <label for="code">Код из письма</label>
             <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="6 цифр">
             <button id="change-email" class="secondary primary" type="button">Изменить почту / отправить снова</button>
           </div>          <p id="message" class="message" role="status" aria-live="polite"></p>
-          <button id="submit-button" class="primary" type="submit">Получить код <span>→</span></button>
+          <button id="submit-button" class="primary" type="submit">Войти <span>→</span></button>
         </form>
         <p class="card-foot"><a href="https://github.com/Sshows/two-roles-auth-lab/blob/main/README.md" target="_blank" rel="noopener">Как работает сайт и код</a></p>
       </div>
       <div id="profile-panel" class="card" hidden>
         <div class="card-top"><span class="dot"></span> ЛИЧНЫЙ КАБИНЕТ</div>
         <div class="avatar">✓</div>
-        <h2>Вы вошли</h2>
+        <h2 id="cabinet-title">Личный кабинет</h2>
         <p class="muted">Аккаунт успешно подтверждён на сервере.</p>
-        <div class="profile-row"><span>Почта</span><strong id="profile-email"></strong></div>
+        <div class="profile-row"><span>Имя</span><strong id="profile-name"></strong></div><div class="profile-row"><span>Почта</span><strong id="profile-email"></strong></div>
         <div class="profile-row"><span>Роль</span><strong id="profile-role"></strong></div>
         <p class="hint"></p>
         <button id="logout-button" class="primary secondary" type="button">Выйти <span>→</span></button>
@@ -42,6 +47,7 @@
   <script src="/script.js"></script>
 </body>
 </html>
+
 
 
 
