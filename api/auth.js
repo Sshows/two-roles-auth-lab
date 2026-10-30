@@ -1,6 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import nodemailer from 'nodemailer';
-import { randomInt, createHmac, timingSafeEqual } from 'node:crypto';
+import { randomInt, randomBytes, scryptSync, createHmac, timingSafeEqual } from 'node:crypto';
 
 const sql = neon(process.env.DATABASE_URL);
 const cookieName = 'lab_session';
@@ -10,6 +10,21 @@ const mail = nodemailer.createTransport({
   connectionTimeout: 10000, socketTimeout: 15000
 });
 const sign = value => createHmac('sha256', process.env.SESSION_SECRET).update(value).digest('hex');
+
+function hashPassword(password) {
+  const salt = randomBytes(16).toString('hex');
+  return salt + ':' + scryptSync(password, salt, 64).toString('hex');
+}
+function checkPassword(password, saved) {
+  if (!/^[a-f0-9]{32}:[a-f0-9]{128}$/.test(saved)) return false;
+  const [salt, hash] = saved.split(':');
+  return timingSafeEqual(scryptSync(password, salt, 64), Buffer.from(hash, 'hex'));
+}
+function finishLogin(res, account) {
+  const data = Buffer.from(JSON.stringify({ id: account.id, exp: Date.now() + 86400000 })).toString('base64url');
+  res.setHeader('Set-Cookie', `${cookieName}=${data}.${sign(data)}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=86400`);
+  return res.json({ name: account.name, email: account.email, role: account.role });
+}
 
 function readSession(req) {
   const value = req.headers.cookie?.split(';').map(x => x.trim()).find(x => x.startsWith(cookieName + '='))?.slice(cookieName.length + 1);
@@ -30,7 +45,7 @@ export default async function handler(req, res) {
     if (req.method === 'GET' && action === 'me') {
       const session = readSession(req);
       if (!session) return res.status(401).json({ error: 'Войдите в аккаунт' });
-      const rows = await sql`SELECT email, role FROM accounts WHERE id = ${session.id}`;
+      const rows = await sql`SELECT name, email, role FROM accounts WHERE id = ${session.id}`;
       return rows[0] ? res.json(rows[0]) : res.status(401).json({ error: 'Сеанс завершён' });
     }
     if (req.method !== 'POST') return res.status(405).json({ error: 'Метод не поддерживается' });
@@ -41,7 +56,25 @@ export default async function handler(req, res) {
     }
     const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
     if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ error: 'Введите корректную почту' });
-    if (action === 'send') {
+    const password = req.body?.password;
+    if (action === 'login' || action === 'register') {
+      if (typeof password !== 'string' || password.length < 8 || password.length > 128) return res.status(400).json({ error: 'Пароль должен содержать от 8 до 128 символов' });
+    }
+    if (action === 'login') {
+      const bucket = sign('login:' + email + ':' + Math.floor(Date.now() / 900000));
+      const limits = await sql`INSERT INTO mail_limits (bucket, total) VALUES (${bucket}, 1)
+        ON CONFLICT (bucket) DO UPDATE SET total = mail_limits.total + 1 RETURNING total`;
+      if (limits[0].total > 20) return res.status(429).json({ error: 'Слишком много попыток. Попробуйте через 15 минут.' });
+      const rows = await sql`SELECT id, name, email, password_hash, role FROM accounts WHERE email = ${email}`;
+      if (!rows[0] || !checkPassword(password, rows[0].password_hash)) return res.status(401).json({ error: 'Неверная почта или пароль. Если входили только по коду, сначала завершите регистрацию с паролем.' });
+      if (req.body.role !== rows[0].role) return res.status(403).json({ error: 'Выбранный тип входа не соответствует роли аккаунта' });
+      return finishLogin(res, rows[0]);
+    }
+    if (action === 'register') {
+      const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+      if (name.length < 2 || name.length > 80) return res.status(400).json({ error: 'Введите имя от 2 до 80 символов' });
+      const existing = await sql`SELECT id FROM accounts WHERE email = ${email} AND password_hash <> 'email-code'`;
+      if (existing.length) return res.status(409).json({ error: 'Аккаунт уже зарегистрирован. Перейдите на вкладку «Вход».' });
       // Ограничение запросов хранится в базе, поэтому работает между запусками функции.
       const ip = String(req.headers['x-vercel-forwarded-for'] || req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0];
       const bucket = sign(ip + ':' + Math.floor(Date.now() / 3600000));
@@ -50,14 +83,14 @@ export default async function handler(req, res) {
       if (limits[0].total > 10) return res.status(429).json({ error: 'Слишком много запросов. Попробуйте через час.' });
       const code = String(randomInt(100000, 1000000));
       const hash = sign(email + ':' + code);
-      const saved = await sql`INSERT INTO login_codes (email, code_hash, expires_at, sent_at, attempts)
-        VALUES (${email}, ${hash}, now() + interval '10 minutes', now(), 0)
-        ON CONFLICT (email) DO UPDATE SET code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at, sent_at = now(), attempts = 0
+      const saved = await sql`INSERT INTO login_codes (email, code_hash, expires_at, sent_at, attempts, pending_name, pending_hash)
+        VALUES (${email}, ${hash}, now() + interval '10 minutes', now(), 0, ${name}, ${hashPassword(password)})
+        ON CONFLICT (email) DO UPDATE SET code_hash = EXCLUDED.code_hash, expires_at = EXCLUDED.expires_at, sent_at = now(), attempts = 0, pending_name = EXCLUDED.pending_name, pending_hash = EXCLUDED.pending_hash
         WHERE login_codes.sent_at < now() - interval '60 seconds' RETURNING email`;
       if (!saved.length) return res.status(429).json({ error: 'Повторно отправить код можно через минуту.' });
       try {
         await mail.sendMail({ from: `Лист <${process.env.SMTP_USER}>`, to: email,
-          subject: 'Код входа в Лист', text: `Ваш код: ${code}\n\nОн действует 10 минут и подходит для одного входа.\nЕсли вы не запрашивали вход, проигнорируйте письмо.` });
+          subject: 'Подтверждение регистрации в Лист', text: `Код регистрации: ${code}\n\nДействует 10 минут. Введите его на сайте для сохранения аккаунта.\nЕсли вы не регистрировались, проигнорируйте письмо.` });
       } catch {
         await sql`UPDATE login_codes SET expires_at = now(), sent_at = now() - interval '61 seconds' WHERE email = ${email} AND code_hash = ${hash}`;
         return res.status(503).json({ error: 'Не удалось отправить письмо. Попробуйте ещё раз позже.' });
@@ -71,15 +104,14 @@ export default async function handler(req, res) {
       const hash = sign(email + ':' + code);
       const rows = await sql`UPDATE login_codes SET attempts = attempts + 1,
         expires_at = CASE WHEN code_hash = ${hash} THEN now() ELSE expires_at END
-        WHERE email = ${email} AND expires_at > now() AND attempts < 5 RETURNING code_hash`;
+        WHERE email = ${email} AND expires_at > now() AND attempts < 5 AND pending_hash IS NOT NULL RETURNING code_hash, pending_name, pending_hash`;
       if (!rows[0] || rows[0].code_hash !== hash) return res.status(401).json({ error: 'Код неверный, истёк или уже использован. Запросите новый.' });
       const role = email === process.env.ADMIN_EMAIL?.trim().toLowerCase() ? 'admin' : 'user';
-      const accounts = await sql`INSERT INTO accounts (email, password_hash, role) VALUES (${email}, 'email-code', ${role})
-        ON CONFLICT (email) DO UPDATE SET role = EXCLUDED.role RETURNING id, email, role`;
-      const account = accounts[0];
-      const data = Buffer.from(JSON.stringify({ id: account.id, exp: Date.now() + 86400000 })).toString('base64url');
-      res.setHeader('Set-Cookie', `${cookieName}=${data}.${sign(data)}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=86400`);
-      return res.json({ email: account.email, role: account.role });
+      const accounts = await sql`INSERT INTO accounts (email, name, password_hash, role) VALUES (${email}, ${rows[0].pending_name}, ${rows[0].pending_hash}, ${role})
+        ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name, password_hash = EXCLUDED.password_hash, role = EXCLUDED.role
+        WHERE accounts.password_hash = 'email-code' RETURNING id, name, email, role`;
+      if (!accounts[0]) return res.status(409).json({ error: 'Аккаунт уже зарегистрирован. Войдите с паролем.' });
+      return finishLogin(res, accounts[0]);
     }
     return res.status(404).json({ error: 'Неизвестное действие' });
   } catch {
