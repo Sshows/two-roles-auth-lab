@@ -1,29 +1,34 @@
 const $ = selector => document.querySelector(selector);
-let step = 'send';
 let mode = 'login';
+let confirming = false;
 
-function resetForm() {
-  step = 'send';
+function setMode(next) {
+  mode = next;
+  confirming = false;
+  $('#auth-form').reset();
+  $('#message').textContent = '';
   $('#code-fields').hidden = true;
   $('#code').required = false;
-  $('#code').value = '';
   $('#email').readOnly = false;
-  $('#submit-button').textContent = 'Получить код →';
-  $('#message').textContent = '';
+  $('#details-fields').hidden = false;
+  $('#name-field').hidden = mode !== 'register';
+  $('#name').required = mode === 'register';
+  $('#role-field').hidden = mode !== 'login';
+  $('#password').required = true;
+  $('#password').autocomplete = mode === 'login' ? 'current-password' : 'new-password';
+  $('#login-tab').classList.toggle('active', mode === 'login');
+  $('#register-tab').classList.toggle('active', mode === 'register');
+  $('#form-title').textContent = mode === 'login' ? 'С возвращением' : 'Создайте аккаунт';
+  $('#form-subtitle').textContent = mode === 'login' ? 'Введите почту и пароль' : 'Заполните данные и подтвердите почту';
+  $('#submit-button').textContent = mode === 'login' ? 'Войти →' : 'Зарегистрироваться →';
 }
 function showProfile(account) {
   $('#auth-panel').hidden = true;
   $('#profile-panel').hidden = false;
+  $('#profile-name').textContent = account.name || 'Не указано';
   $('#profile-email').textContent = account.email;
   $('#profile-role').textContent = account.role === 'admin' ? 'Администратор' : 'Пользователь';
-}
-function setMode(next) {
-  mode = next;
-  resetForm();
-  $('#login-tab').classList.toggle('active', mode === 'login');
-  $('#register-tab').classList.toggle('active', mode === 'register');
-  $('#form-title').textContent = mode === 'login' ? 'С возвращением' : 'Создайте аккаунт';
-  $('#form-subtitle').textContent = 'Отправим одноразовый код на вашу почту';
+  $('#cabinet-title').textContent = account.role === 'admin' ? 'Кабинет администратора' : 'Кабинет пользователя';
 }
 async function api(action, data = {}) {
   const response = await fetch(`/api/auth?action=${action}`, {
@@ -35,25 +40,28 @@ async function api(action, data = {}) {
 }
 $('#login-tab').onclick = () => setMode('login');
 $('#register-tab').onclick = () => setMode('register');
-$('#change-email').onclick = resetForm;
+$('#change-email').onclick = () => setMode('register');
 $('#auth-form').onsubmit = async event => {
   event.preventDefault();
   $('#submit-button').disabled = true;
   $('#message').textContent = '';
   try {
     const data = Object.fromEntries(new FormData(event.target));
-    const result = await api(step, data);
-    if (step === 'send') {
-      step = 'verify';
+    const result = await api(confirming ? 'verify' : mode, data);
+    if (mode === 'register' && !confirming) {
+      confirming = true;
+      $('#details-fields').hidden = true;
+      $('#name').required = false;
+      $('#password').required = false;
+      $('#password').value = '';
       $('#code-fields').hidden = false;
       $('#code').required = true;
       $('#email').readOnly = true;
-      $('#submit-button').textContent = 'Подтвердить и войти →';
-      $('#message').textContent = 'Письмо отправлено. Проверьте также папку «Спам». Код действует 10 минут.';
+      $('#submit-button').textContent = 'Подтвердить регистрацию →';
+      $('#message').textContent = 'Код отправлен на вашу почту. Он действует 10 минут. Проверьте также папку «Спам».';
       $('#code').focus();
     } else {
       event.target.reset();
-      resetForm();
       showProfile(result);
     }
   } catch (error) { $('#message').textContent = error.message; }
@@ -67,6 +75,7 @@ $('#logout-button').onclick = async () => {
     setMode('login');
   } catch { $('#logout-button').textContent = 'Не удалось выйти. Повторить'; }
 };
+setMode('login');
 fetch('/api/auth?action=me').then(r => r.ok ? r.json() : null)
   .then(account => { if (account) showProfile(account); }).catch(() => {});
 
