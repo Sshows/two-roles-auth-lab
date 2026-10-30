@@ -1,0 +1,9 @@
+{
+  "name": "auth-lab",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "vercel dev" },
+  "dependencies": { "@neondatabase/serverless": "^1.0.0" }
+}
+
