@@ -42,7 +42,7 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   try {
     const action = req.query.action;
-    if (action === 'users' || action === 'promote') {
+    if (action === 'users' || action === 'promote' || action === 'demote') {
       if (req.method !== 'POST') return res.status(405).json({ error: 'Метод не поддерживается' });
       if (req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) return res.status(403).json({ error: 'Недопустимый источник' });
       const session = readSession(req);
@@ -55,6 +55,14 @@ export default async function handler(req, res) {
       }
       const id = req.body?.id;
       if (typeof id !== 'string' || !/^[a-f0-9-]{36}$/i.test(id)) return res.status(400).json({ error: 'Некорректный аккаунт' });
+      if (action === 'demote') {
+        if (id === session.id) return res.status(400).json({ error: 'Нельзя снять права с самого себя' });
+        const owner = process.env.ADMIN_EMAIL?.trim().toLowerCase() || '';
+        const users = await sql`UPDATE accounts SET role = 'user'
+          WHERE id = ${id} AND email <> ${owner} RETURNING id, name, email, role`;
+        if (!users[0]) return res.status(403).json({ error: 'Нельзя снять права владельца сайта или аккаунт не найден' });
+        return res.json(users[0]);
+      }
       const users = await sql`UPDATE accounts SET role = 'admin' WHERE id = ${id} AND password_hash <> 'email-code' RETURNING id, name, email, role`;
       if (!users[0]) return res.status(404).json({ error: 'Аккаунт не найден или регистрация с паролем не завершена' });
       return res.json(users[0]);
