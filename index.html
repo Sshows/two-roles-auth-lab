@@ -40,6 +40,13 @@
         <div class="profile-row"><span>Имя</span><strong id="profile-name"></strong></div><div class="profile-row"><span>Почта</span><strong id="profile-email"></strong></div>
         <div class="profile-row"><span>Роль</span><strong id="profile-role"></strong></div>
         <p class="hint"></p>
+        <section id="admin-panel" hidden>
+          <h3>Пользователи</h3>
+          <p class="hint">Назначайте администратором только того, кому доверяете управление ролями.</p>
+          <button type="button" class="primary secondary" onclick="loadUsers()">Обновить список</button>
+          <p id="admin-message" class="hint" role="status"></p>
+          <div id="users-list"></div>
+        </section>
         <button id="logout-button" class="primary secondary" type="button">Выйти <span>→</span></button>
       </div>
     </section>
@@ -47,6 +54,7 @@
   <script src="/script.js"></script>
 </body>
 </html>
+
 
 
 
