@@ -29,6 +29,44 @@ function showProfile(account) {
   $('#profile-email').textContent = account.email;
   $('#profile-role').textContent = account.role === 'admin' ? 'Администратор' : 'Пользователь';
   $('#cabinet-title').textContent = account.role === 'admin' ? 'Кабинет администратора' : 'Кабинет пользователя';
+  $('#admin-panel').hidden = account.role !== 'admin';
+  if (account.role === 'admin') loadUsers();
+}
+async function loadUsers() {
+  $('#admin-message').textContent = 'Загрузка…';
+  $('#users-list').replaceChildren();
+  try {
+    const result = await api('users');
+    for (const user of result.users) {
+      const row = document.createElement('div');
+      row.className = 'user-row';
+      const label = document.createElement('div');
+      label.textContent = `${user.name || 'Без имени'} · ${user.email}`;
+      row.append(label);
+      if (user.role === 'admin') {
+        const badge = document.createElement('small');
+        badge.textContent = 'Администратор';
+        row.append(badge);
+      } else {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'primary secondary';
+        button.textContent = 'Назначить администратором';
+        button.onclick = async () => {
+          if (!confirm(`Назначить ${user.email} администратором? Он сможет назначать других администраторов.`)) return;
+          button.disabled = true;
+          try {
+            await api('promote', { id: user.id });
+            await loadUsers();
+            $('#admin-message').textContent = `Роль для ${user.email} сохранена. Теперь вход — как администратор.`;
+          } catch (error) { $('#admin-message').textContent = error.message; button.disabled = false; }
+        };
+        row.append(button);
+      }
+      $('#users-list').append(row);
+    }
+    $('#admin-message').textContent = result.users.length ? 'Последние 200 аккаунтов' : 'Пользователей пока нет';
+  } catch (error) { $('#admin-message').textContent = error.message; }
 }
 async function api(action, data = {}) {
   const response = await fetch(`/api/auth?action=${action}`, {
