@@ -42,6 +42,23 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   try {
     const action = req.query.action;
+    if (action === 'users' || action === 'promote') {
+      if (req.method !== 'POST') return res.status(405).json({ error: 'Метод не поддерживается' });
+      if (req.headers.origin && new URL(req.headers.origin).host !== req.headers.host) return res.status(403).json({ error: 'Недопустимый источник' });
+      const session = readSession(req);
+      if (!session) return res.status(401).json({ error: 'Войдите в аккаунт' });
+      const actors = await sql`SELECT role FROM accounts WHERE id = ${session.id}`;
+      if (actors[0]?.role !== 'admin') return res.status(403).json({ error: 'Доступ только для администратора' });
+      if (action === 'users') {
+        const users = await sql`SELECT id, name, email, role, created_at FROM accounts ORDER BY created_at DESC LIMIT 200`;
+        return res.json({ users });
+      }
+      const id = req.body?.id;
+      if (typeof id !== 'string' || !/^[a-f0-9-]{36}$/i.test(id)) return res.status(400).json({ error: 'Некорректный аккаунт' });
+      const users = await sql`UPDATE accounts SET role = 'admin' WHERE id = ${id} AND password_hash <> 'email-code' RETURNING id, name, email, role`;
+      if (!users[0]) return res.status(404).json({ error: 'Аккаунт не найден или регистрация с паролем не завершена' });
+      return res.json(users[0]);
+    }
     if (req.method === 'GET' && action === 'me') {
       const session = readSession(req);
       if (!session) return res.status(401).json({ error: 'Войдите в аккаунт' });
