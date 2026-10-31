@@ -1,6 +1,7 @@
 const $ = selector => document.querySelector(selector);
 let mode = 'login';
 let confirming = false;
+let currentEmail = '';
 
 function setMode(next) {
   mode = next;
@@ -23,6 +24,7 @@ function setMode(next) {
   $('#submit-button').textContent = mode === 'login' ? 'Войти →' : 'Зарегистрироваться →';
 }
 function showProfile(account) {
+  currentEmail = account.email;
   $('#auth-panel').hidden = true;
   $('#profile-panel').hidden = false;
   $('#profile-name').textContent = account.name || 'Не указано';
@@ -47,6 +49,22 @@ async function loadUsers() {
         const badge = document.createElement('small');
         badge.textContent = 'Администратор';
         row.append(badge);
+        if (user.email !== currentEmail) {
+          const remove = document.createElement('button');
+          remove.type = 'button';
+          remove.className = 'primary secondary';
+          remove.textContent = 'Снять права администратора';
+          remove.onclick = async () => {
+            if (!confirm(`Снять права администратора у ${user.email}? Аккаунт останется пользователем.`)) return;
+            remove.disabled = true;
+            try {
+              await api('demote', { id: user.id });
+              await loadUsers();
+              $('#admin-message').textContent = `${user.email} теперь пользователь.`;
+            } catch (error) { $('#admin-message').textContent = error.message; remove.disabled = false; }
+          };
+          row.append(remove);
+        }
       } else {
         const button = document.createElement('button');
         button.type = 'button';
