@@ -14,7 +14,6 @@ function setMode(next) {
   $('#details-fields').hidden = false;
   $('#name-field').hidden = mode !== 'register';
   $('#name').required = mode === 'register';
-  $('#role-field').hidden = mode !== 'login';
   $('#password').required = true;
   $('#password').autocomplete = mode === 'login' ? 'current-password' : 'new-password';
   $('#login-tab').classList.toggle('active', mode === 'login');
@@ -32,6 +31,10 @@ function showProfile(account) {
   $('#profile-role').textContent = account.role === 'admin' ? 'Администратор' : 'Пользователь';
   $('#cabinet-title').textContent = account.role === 'admin' ? 'Кабинет администратора' : 'Кабинет пользователя';
   $('#admin-panel').hidden = account.role !== 'admin';
+  $('#users-list').replaceChildren();
+  $('#access-hint').textContent = account.role === 'admin'
+    ? 'Вы можете просматривать аккаунты и управлять ролями.'
+    : 'Вам доступен только свой профиль.';
   if (account.role === 'admin') loadUsers();
 }
 async function loadUsers() {
@@ -76,7 +79,7 @@ async function loadUsers() {
           try {
             await api('promote', { id: user.id });
             await loadUsers();
-            $('#admin-message').textContent = `Роль для ${user.email} сохранена. Теперь вход — как администратор.`;
+            $('#admin-message').textContent = `Роль для ${user.email} сохранена. Кабинет администратора откроется после обновления страницы.`;
           } catch (error) { $('#admin-message').textContent = error.message; button.disabled = false; }
         };
         row.append(button);
@@ -127,6 +130,8 @@ $('#logout-button').onclick = async () => {
   try {
     await api('logout');
     $('#profile-panel').hidden = true;
+    $('#users-list').replaceChildren();
+    $('#admin-panel').hidden = true;
     $('#auth-panel').hidden = false;
     setMode('login');
   } catch { $('#logout-button').textContent = 'Не удалось выйти. Повторить'; }
