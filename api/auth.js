@@ -92,7 +92,7 @@ export default async function handler(req, res) {
       if (limits[0].total > 20) return res.status(429).json({ error: 'Слишком много попыток. Попробуйте через 15 минут.' });
       const rows = await sql`SELECT id, name, email, password_hash, role FROM accounts WHERE email = ${email}`;
       if (!rows[0] || !checkPassword(password, rows[0].password_hash)) return res.status(401).json({ error: 'Неверная почта или пароль. Если входили только по коду, сначала завершите регистрацию с паролем.' });
-      if (req.body.role !== rows[0].role) return res.status(403).json({ error: 'Выбранный тип входа не соответствует роли аккаунта' });
+      // Роль берём только из базы: посетитель не может выбрать себе права.
       return finishLogin(res, rows[0]);
     }
     if (action === 'register') {
