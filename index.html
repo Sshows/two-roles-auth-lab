@@ -21,7 +21,6 @@
           <div id="details-fields">
             <div id="name-field" hidden><label for="name">Имя и фамилия</label><input id="name" name="name" autocomplete="name" minlength="2" maxlength="80" placeholder="Как к вам обращаться"></div>
             <label for="password">Пароль</label><input id="password" name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" placeholder="Не менее 8 символов" required>
-            <div id="role-field"><label for="role">Войти как</label><select id="role" name="role"><option value="user">Пользователь</option><option value="admin">Администратор</option></select></div>
           </div>
           <div id="code-fields" hidden>
             <label for="code">Код из письма</label>
@@ -38,7 +37,7 @@
         <p class="muted">Аккаунт успешно подтверждён на сервере.</p>
         <div class="profile-row"><span>Имя</span><strong id="profile-name"></strong></div><div class="profile-row"><span>Почта</span><strong id="profile-email"></strong></div>
         <div class="profile-row"><span>Роль</span><strong id="profile-role"></strong></div>
-        <p class="hint"></p>
+        <p id="access-hint" class="hint"></p>
         <section id="admin-panel" hidden>
           <h3>Пользователи</h3>
           <p class="hint">Назначайте администратором только того, кому доверяете управление ролями.</p>
